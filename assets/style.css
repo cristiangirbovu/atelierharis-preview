@@ -386,14 +386,6 @@ html:not(.js) .pasi li::before, .pasi li.in::before { transform: scaleX(1); }
 .js .puncte li.rv .romb { transform: rotate(-45deg) scale(.4); transition: transform .9s var(--ies-lung); }
 .js .puncte li.rv.in .romb { transform: rotate(45deg); transition-delay: calc(var(--i, 0) * 80ms + .2s); }
 
-/* Banda derulantă */
-.panglica { overflow: hidden; border-top: 1px solid var(--linie); border-bottom: 1px solid var(--linie); background: var(--alb); padding: 22px 0; }
-.panglica-sir { display: flex; width: max-content; animation: panglica 48s linear infinite; }
-.panglica:hover .panglica-sir { animation-play-state: paused; }
-.panglica-sir > span { display: flex; align-items: center; flex: none; font: 500 italic clamp(1.6rem, 1.2rem + 1.6vw, 2.6rem)/1.1 var(--serif); color: var(--grena); white-space: nowrap; }
-.panglica .romb { margin: 0 clamp(22px, 3vw, 44px); width: 8px; height: 8px; }
-@keyframes panglica { to { transform: translateX(-50%); } }
-
 /* Catalogul: filtrele rămân la îndemână, cardurile reapar în cascadă */
 @container pag (min-width: 760px) {
   .filtre { position: sticky; top: 64px; z-index: 20; background: var(--alb); padding-top: 16px; margin-top: -16px; transition: top .45s var(--ies-lung); }
@@ -483,7 +475,6 @@ html:not(.js) .pasi li::before, .pasi li.in::before { transform: scaleX(1); }
   .js .rv, .js .titlu-mare .cuv > span, .js .erou-text > *, .js .erou-foto .foto { opacity: 1 !important; transform: none !important; animation: none !important; }
   .cusatura, .cap-sectiune h2::after, .doua-text h2::after, .banda h2::after { clip-path: none !important; animation: none !important; }
   .pasi li::before { transform: scaleX(1) !important; }
-  .panglica-sir { animation: none; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 .galerie-mic .marcaj-d { display: none; }
