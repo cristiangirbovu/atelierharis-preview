@@ -20,6 +20,22 @@ const dir = (id) => DIRECTII.find((d) => d.id === id);
 const catNume = (p) => { const d = dir(p.directie); const c = d.categorii.find((x) => x.id === p.categorie); return c ? c.nume : ''; };
 const tipNume = (p) => { const d = dir(p.directie); const t = d.tipuri.find((x) => x.id === p.tip); return t ? t.nume : ''; };
 const prodSlug = (p) => `catalog/${p.slug}`;
+// Sloturile de fotografie ale unui produs, pe direcție (marcajele locurilor goale)
+const SLOTURI = {
+  traditional: [
+    { t: 'Poză produs', d: 'Produsul întreg, pe fundal alb, din față' },
+    { t: 'Poză detaliu', d: 'Broderia de aproape, se vede firul' },
+    { t: 'Poză purtat', d: 'Pe o persoană, încadrare de la umeri în jos' },
+    { t: 'Poză spate', d: 'Produsul întreg, din spate' },
+  ],
+  liturgic: [
+    { t: 'Poză produs', d: 'Piesa întreagă, pe fundal alb' },
+    { t: 'Poză detaliu', d: 'Firul auriu de aproape' },
+    { t: 'Poză în context', d: 'În biserică sau pe Sfânta Masă' },
+    { t: 'Poză chenar', d: 'Chenarul sau ciucurii, de aproape' },
+  ],
+};
+const imgProdus = (p, i) => (p.imagini && p.imagini[i]) || null;
 
 // ---------- Pictograme
 const WA_PATH = 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z';
@@ -32,9 +48,16 @@ const fir = `<div class="fir" aria-hidden="true"><span></span>${romb}<span></spa
 const waHref = (text) => `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`;
 const WA_GENERAL = waHref('Bună ziua, aș dori informații despre o lucrare brodată.');
 
-// ---------- Locurile de fotografie (până la fotografiile atelierului)
+// ---------- Fotografiile și locurile de fotografie
 // tonul: ivoar / piatra / grena; raportul: '4/5', '1/1', '3/2', '16/9'
-const foto = (alt, { r = '4/5', ton = 'ivoar', cls = '' } = {}) => `<div class="foto foto-${ton} ${cls}" style="aspect-ratio:${r}" role="img" aria-label="${esc(alt)}"></div>`;
+// m = marcajul locului gol { t: tipul pozei, d: ce/cine apare }; se afișează doar pe preview, niciodată cu --prod
+// img = { src, w, h } (cale relativă la assets/img/site/) când există fotografia
+const MARCAJE = !PROD;
+const foto = (alt, { r = '4/5', ton = 'ivoar', cls = '', m = null, img = null, rel = '', eager = false } = {}) => {
+  if (img) return `<div class="foto foto-img ${cls}" style="aspect-ratio:${r}"><img src="${rel}assets/img/site/${img.src}" alt="${esc(alt)}" width="${img.w}" height="${img.h}"${eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async"></div>`;
+  const marcaj = MARCAJE && m ? `<span class="marcaj"><span class="marcaj-t">${esc(m.t)}</span>${m.d ? `<span class="marcaj-d">${esc(m.d)}</span>` : ''}</span>` : '';
+  return `<div class="foto foto-${ton}${marcaj ? ' foto-marcat' : ''} ${cls}" style="aspect-ratio:${r}" role="img" aria-label="${esc(alt)}">${marcaj}</div>`;
+};
 
 // ---------- Date structurate
 const jsonld = (obj) => `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`;
@@ -55,6 +78,7 @@ function head(page, rel, ld) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.classList.add('js')</script>
 <title>${esc(page.title)}</title>
 <meta name="description" content="${esc(page.description)}">
 ${PROD && !page.noindex ? '' : '<meta name="robots" content="noindex, nofollow">\n'}<link rel="canonical" href="${url}">
@@ -140,7 +164,7 @@ const firimituri = (rel, items) => `<nav class="firimituri" aria-label="Unde vă
 
 const cardProdus = (rel, p) => `<article class="card-produs" data-directie="${p.directie}" data-categorie="${p.categorie}" data-tip="${p.tip || ''}">
   <a href="${link(rel, prodSlug(p))}">
-    ${foto(p.nume, { r: '4/5', ton: p.directie === 'liturgic' ? 'piatra' : 'ivoar' })}
+    <div class="card-media">${foto(p.nume, { r: '4/5', ton: p.directie === 'liturgic' ? 'piatra' : 'ivoar', m: { t: 'Poză produs', d: 'Fundal alb, din față' }, img: imgProdus(p, 0), rel })}${imgProdus(p, 2) ? foto(`${p.nume}, purtat`, { r: '4/5', img: imgProdus(p, 2), rel, cls: 'foto-hover' }) : ''}<span class="card-vezi" aria-hidden="true">Vedeți modelul</span></div>
     <p class="card-cat">${esc(catNume(p))}</p>
     <h3>${esc(p.nume)}</h3>
     <p class="card-pret">${lei(p.pret)}</p>
@@ -176,6 +200,8 @@ const camp = (id, label, { type = 'text', req = false, auto = '', ph = '', full 
 const zona = (id, label, { req = false, ph = '' } = {}) => `<div class="camp camp-lat"><label for="${id}">${label}${req ? '' : ' <span class="opt">(opțional)</span>'}</label><textarea id="${id}" name="${id}" rows="4"${req ? ' required' : ''}${ph ? ` placeholder="${esc(ph)}"` : ''}></textarea></div>`;
 const selectie = (id, label, optiuni, { req = true } = {}) => `<div class="camp"><label for="${id}">${label}</label><select id="${id}" name="${id}"${req ? ' required' : ''}>${optiuni.map((o) => `<option>${esc(o)}</option>`).join('')}</select></div>`;
 const acord = (rel, id) => `<div class="camp camp-lat camp-acord"><input id="${id}" name="${id}" type="checkbox" required><label for="${id}">Am citit <a href="${link(rel, 'termeni-si-conditii')}">termenii și condițiile</a> și <a href="${link(rel, 'politica-de-confidentialitate')}">politica de confidențialitate</a>.</label></div>`;
+const CULORI = { 'Grena': '#6B1D2A', 'Auriu': '#B8955A', 'Verde': '#2F4A3A', 'Albastru': '#26405F', 'Roșu': '#A3262E', 'Negru': '#2B1519', 'Negru cu roșu': 'linear-gradient(135deg,#2B1519 50%,#A3262E 50%)', 'Auriu pe grena': 'linear-gradient(135deg,#B8955A 50%,#6B1D2A 50%)', 'Auriu pe alb': 'linear-gradient(135deg,#B8955A 50%,#FBF8F3 50%)', 'Auriu pe albastru': 'linear-gradient(135deg,#B8955A 50%,#26405F 50%)', 'Argintiu pe albastru': 'linear-gradient(135deg,#BFC3C7 50%,#26405F 50%)' };
+const alegere = (id, label, optiuni, { mostre = false } = {}) => `<fieldset class="alegere" data-alegere="${id}"><legend>${label}: <span class="alegere-val" data-val>${esc(optiuni[0])}</span></legend><div class="alegere-opt">${optiuni.map((o, i) => `<label class="pastila-opt${mostre ? ' cu-mostra' : ''}"><input type="radio" name="${id}" value="${esc(o)}"${i === 0 ? ' checked' : ''}>${mostre ? `<span class="mostra" style="background:${CULORI[o] || '#D9CFBF'}"></span>` : ''}<span>${esc(o)}</span></label>`).join('')}</div></fieldset>`;
 const multumire = (text) => `<div class="form-ok" role="status" hidden><p class="form-ok-t">Vă mulțumim!</p><p>${text}</p></div>`;
 
 // ---------- Prima pagină
@@ -187,7 +213,8 @@ function acasa() {
   <div class="wrap erou-in">
     <div class="erou-text">
       <p class="eticheta">Atelier de broderie, ${SITE.oras}</p>
-      <h1>${ACASA.h1}</h1>
+      <h1 class="titlu-mare">${ACASA.h1.split(' ').map((w, i) => `<span class="cuv"><span style="--i:${i}">${esc(w)}</span></span>`).join(' ')}</h1>
+      <span class="cusatura" aria-hidden="true"></span>
       <p class="lead">${esc(ACASA.sub)}</p>
       <div class="actiuni">
         <a class="btn" href="${link(rel, 'catalog')}">Vedeți catalogul</a>
@@ -200,7 +227,7 @@ function acasa() {
       </ul>
     </div>
     <div class="erou-foto">
-      ${foto('Detaliu de broderie cu romburi, lucrat în fir grena și auriu', { r: '4/5', ton: 'piatra' })}
+      ${foto('Detaliu de broderie cu romburi, lucrat în fir grena și auriu', { r: '4/5', ton: 'piatra', m: { t: 'Poză de deschidere', d: 'Broderie de aproape, lumină naturală, fără persoane' }, img: ACASA.erouImg, rel, eager: true })}
     </div>
   </div>
 </section>
@@ -213,7 +240,7 @@ function acasa() {
     </div>
     <div class="directii">
       ${DIRECTII.map((d, i) => `<a class="card-directie" href="${link(rel, d.slug)}">
-        ${foto(d.nume, { r: '4/5', ton: ['ivoar', 'grena', 'piatra'][i] })}
+        <div class="card-directie-media">${foto(d.nume, { r: '4/5', ton: ['ivoar', 'grena', 'piatra'][i], m: d.marcaj, img: d.img, rel })}</div>
         <h3>${d.nume}</h3>
         <p>${esc(d.scurt)}</p>
         <span class="legatura">Descoperiți</span>
@@ -221,6 +248,8 @@ function acasa() {
     </div>
   </div>
 </section>
+
+<div class="panglica" aria-hidden="true"><div class="panglica-sir">${[0, 1].map(() => `<span>${DIRECTII.map((d) => esc(d.nume)).concat([SITE.slogan.replace('.', '')]).map((t) => `${t}<i class="romb"></i>`).join('')}</span>`).join('')}</div></div>
 
 <section class="sectiune sectiune-ivoar">
   <div class="wrap">
@@ -236,7 +265,7 @@ ${blocPasi(PASI_COMANDA)}
 
 <section class="sectiune sectiune-ivoar">
   <div class="wrap doua">
-    <div>${foto('Doamna Gina, la masa de lucru din atelier', { r: '4/5', ton: 'piatra' })}</div>
+    <div>${foto('Doamna Gina, la masa de lucru din atelier', { r: '4/5', ton: 'piatra', m: { t: 'Portret', d: 'Doamna Gina la masa de lucru, lumină naturală' } })}</div>
     <div class="doua-text">
       <h2>${ACASA.atelier.t}</h2>
       <p>${esc(ACASA.atelier.d)}</p>
@@ -268,7 +297,7 @@ function paginaDirectie(d) {
           <a class="btn btn-contur" href="${waHref(`Bună ziua, aș dori informații despre ${d.nume.toLowerCase()}.`)}" rel="noopener">${icWa(18)} WhatsApp</a>
         </div>
       </div>
-      <div>${foto(d.nume, { r: '4/5', ton: d.id === 'liturgic' ? 'grena' : 'piatra' })}</div>
+      <div>${foto(d.nume, { r: '4/5', ton: d.id === 'liturgic' ? 'grena' : 'piatra', m: d.marcaj, img: d.img, rel, eager: true })}</div>
     </div>
   </div>
 </section>
@@ -382,6 +411,7 @@ function paginaProdus(p) {
   const slug = prodSlug(p);
   const crumbs = [{ nume: 'Acasă', href: rel, url: abs('') }, { nume: 'Catalog', href: link(rel, 'catalog'), url: abs('catalog') }, { nume: d.nume, href: link(rel, d.slug), url: abs(d.slug) }, { nume: p.nume, url: abs(slug) }];
   const ton = p.directie === 'liturgic' ? 'piatra' : 'ivoar';
+  const sl = SLOTURI[p.directie];
   const ingrijire = p.directie === 'liturgic' ? 'Curățare chimică delicată. Se păstrează întins sau pe umeraș lat, ferit de lumina directă.' : 'Spălare la 30°, pe dos, cu detergent pentru rufe delicate. Se calcă pe dos, fără abur direct pe broderie.';
   const msgWa = `Bună ziua, aș dori să comand: ${p.nume} (${lei(p.pret)}).`;
   const similare = PRODUSE.filter((x) => x.directie === p.directie && x.slug !== p.slug).slice(0, 4);
@@ -396,8 +426,8 @@ function paginaProdus(p) {
     ${firimituri(rel, crumbs)}
     <div class="produs-grila">
       <div class="galerie">
-        ${foto(p.nume, { r: '4/5', ton, cls: 'galerie-mare' })}
-        <div class="galerie-mici">${[1, 2, 3].map((i) => foto(`${p.nume}, detaliu ${i}`, { r: '1/1', ton: i === 2 ? 'piatra' : ton })).join('')}</div>
+        <div class="galerie-mare" data-galerie>${foto(p.nume, { r: '4/5', ton, m: sl[0], img: imgProdus(p, 0), rel, eager: true })}</div>
+        <div class="galerie-mici">${sl.map((s, i) => `<button type="button" class="galerie-mic" data-i="${i}" aria-label="${esc(s.t)}: ${esc(s.d)}"${i === 0 ? ' aria-current="true"' : ''}>${foto(`${p.nume}, ${s.t.toLowerCase()}`, { r: '4/5', ton: i === 1 ? (ton === 'piatra' ? 'grena' : 'piatra') : ton, m: s, img: imgProdus(p, i), rel })}</button>`).join('')}</div>
       </div>
       <div class="produs-info">
         <p class="eticheta"><a href="${link(rel, d.slug)}">${d.nume}</a> · ${esc(catNume(p))}</p>
@@ -405,8 +435,8 @@ function paginaProdus(p) {
         <p class="produs-pret">${lei(p.pret)}</p>
         <p>${esc(p.scurt)}</p>
         <div class="optiuni" data-optiuni>
-          ${p.culori.length ? selectie('o-culoare', 'Culoarea', p.culori) : ''}
-          ${p.marimi.length ? selectie('o-marime', 'Mărimea', p.marimi) : ''}
+          ${p.culori.length ? alegere('o-culoare', 'Culoarea', p.culori, { mostre: true }) : ''}
+          ${p.marimi.length ? alegere('o-marime', 'Mărimea', p.marimi) : ''}
         </div>
         <div class="actiuni actiuni-produs">
           <button class="btn" type="button" data-deschide="comanda">Comandați</button>
@@ -436,6 +466,11 @@ ${similare.length ? `<section class="sectiune sectiune-ivoar">
   </div>
 </section>` : ''}
 
+<div class="bara-comanda" data-bara aria-hidden="true">
+  <div><p class="bara-nume">${esc(p.nume)}</p><p class="bara-pret">${lei(p.pret)}</p></div>
+  <button class="btn btn-mic" type="button" data-deschide="comanda" tabindex="-1">Comandați</button>
+</div>
+
 <dialog class="fereastra" id="comanda" aria-labelledby="comanda-t">
   <form class="formular" data-formular="comanda" novalidate>
     <div class="fereastra-cap">
@@ -443,7 +478,7 @@ ${similare.length ? `<section class="sectiune sectiune-ivoar">
       <button class="inchide" type="button" data-inchide aria-label="Închide">×</button>
     </div>
     <div class="comanda-rezumat">
-      ${foto(p.nume, { r: '1/1', ton })}
+      ${foto(p.nume, { r: '1/1', ton, img: imgProdus(p, 0), rel })}
       <div><p class="comanda-nume">${esc(p.nume)}</p><p class="comanda-optiuni" data-rezumat></p><p class="comanda-pret">${lei(p.pret)}</p></div>
     </div>
     <input type="hidden" name="produs" value="${esc(p.slug)}">
@@ -479,7 +514,7 @@ function atelier() {
         <p class="lead">${esc(ATELIER.lead)}</p>
         ${ATELIER.paragrafe.map((t) => `<p>${esc(t)}</p>`).join('')}
       </div>
-      <div>${foto('Doamna Gina, în atelier', { r: '4/5', ton: 'piatra' })}</div>
+      <div>${foto('Doamna Gina, în atelier', { r: '4/5', ton: 'piatra', m: { t: 'Portret', d: 'Doamna Gina în atelier, lângă mașina de brodat' } })}</div>
     </div>
   </div>
 </section>
@@ -488,9 +523,9 @@ function atelier() {
 </section>
 <section class="sectiune">
   <div class="wrap galerie-atelier">
-    ${foto('Mașina de brodat în lucru', { r: '3/2', ton: 'ivoar' })}
-    ${foto('Fire de bumbac și fir metalic, pregătite pentru o comandă', { r: '3/2', ton: 'grena' })}
-    ${foto('Detaliu de broderie pe pânză de in', { r: '3/2', ton: 'piatra' })}
+    ${foto('Mașina de brodat în lucru', { r: '3/2', ton: 'ivoar', m: { t: 'Poză atelier', d: 'Mașina de brodat în lucru, de aproape' } })}
+    ${foto('Fire de bumbac și fir metalic, pregătite pentru o comandă', { r: '3/2', ton: 'grena', m: { t: 'Poză materiale', d: 'Mosoare de fir și pânzeturi, pe masa de lucru' } })}
+    ${foto('Detaliu de broderie pe pânză de in', { r: '3/2', ton: 'piatra', m: { t: 'Poză detaliu', d: 'Mâinile Doamnei Gina finisând o piesă' } })}
   </div>
 </section>
 <section class="sectiune sectiune-centru">
